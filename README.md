@@ -517,3 +517,38 @@ ls -ld /mnt/wsl/docker-desktop /mnt/wsl/docker-desktop/cli-tools 2>/dev/null || 
 Also confirm Docker Desktop is running on Windows and that **Settings → Resources → WSL Integration** still has integration enabled for this exact Ubuntu distribution. After checking, apply/restart Docker Desktop and reopen Ubuntu.
 
 Current Docker state: **group membership fixed; Docker CLI integration regressed/missing after WSL restart; daemon access not yet re-tested.**
+
+
+### Docker CLI path diagnosis (2026-11-05)
+
+Latest Ubuntu diagnostic output:
+
+```text
+command -v docker
+/mnt/c/Program Files/Docker/Docker/resources/bin/docker
+
+/usr/bin/docker
+lrwxrwxrwx 1 root root 48 Nov  5 20:40 /usr/bin/docker -> /mnt/wsl/docker-desktop/cli-tools/usr/bin/docker
+```
+
+The displayed `ls -ld` command produced no listing for `/mnt/wsl/docker-desktop` or its `cli-tools` directory. The WSL PATH also contains the Windows Docker Desktop resources directory.
+
+Interpretation: the Windows Docker CLI is discoverable, and the Linux `/usr/bin/docker` symlink exists, but its target appears not to be mounted/present in this WSL session. This points to a Docker Desktop WSL integration mount/startup problem, rather than a remaining Unix group-membership problem. The `docker` group membership is now present.
+
+Next steps:
+1. Confirm Docker Desktop is running on Windows.
+2. In Docker Desktop, check Settings → Resources → WSL Integration and verify the exact Ubuntu distribution is enabled.
+3. Apply/restart Docker Desktop. If enabled already, toggle the Ubuntu integration off, apply, then on and apply again.
+4. From Windows PowerShell, run `wsl --shutdown`, then reopen Ubuntu.
+5. Recheck:
+   ```bash
+   ls -l /usr/bin/docker
+   ls -ld /mnt/wsl/docker-desktop /mnt/wsl/docker-desktop/cli-tools
+   command -v docker
+   docker --version
+   docker info
+   ```
+
+Do not install a second Docker Engine or alter socket permissions while the Desktop integration mount is missing. Do not assume the Windows `docker.exe` path is a substitute for the Linux WSL integration.
+
+Current state: user is in the `docker` group; Windows Docker CLI path is visible; expected WSL Desktop CLI mount appears absent; daemon access remains unverified.
