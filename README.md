@@ -552,3 +552,31 @@ Next steps:
 Do not install a second Docker Engine or alter socket permissions while the Desktop integration mount is missing. Do not assume the Windows `docker.exe` path is a substitute for the Linux WSL integration.
 
 Current state: user is in the `docker` group; Windows Docker CLI path is visible; expected WSL Desktop CLI mount appears absent; daemon access remains unverified.
+
+
+### Docker Desktop integration still absent after re-toggle (2026-11-05)
+
+After the user toggled Ubuntu WSL integration off/on in Docker Desktop, applied/restarted, and ran `wsl --shutdown`, the next Ubuntu session still showed:
+
+```text
+/usr/bin/docker -> /mnt/wsl/docker-desktop/cli-tools/usr/bin/docker
+ls: cannot access '/mnt/wsl/docker-desktop': No such file or directory
+command -v docker
+/mnt/c/Program Files/Docker/Docker/resources/bin/docker
+The command 'docker' could not be found in this WSL 2 distro.
+```
+
+This confirms the expected Docker Desktop WSL mount is still absent. The Windows Docker executable is found through the imported Windows PATH but reports that Docker is unavailable in this distro. The Linux symlink is dangling because its target mount does not exist. Do not try to repair this with chmod, do not recreate the symlink manually, and do not install another Docker daemon yet.
+
+Next diagnostic checkpoint should be performed from **Windows PowerShell**, not Ubuntu:
+
+```powershell
+wsl --status
+wsl --list --verbose
+Get-Service com.docker.service
+Get-Process -Name "Docker Desktop" -ErrorAction SilentlyContinue
+```
+
+Confirm Docker Desktop is fully started, the target Ubuntu distribution appears in `wsl --list --verbose` with VERSION 2, and the Docker Desktop WSL2 engine is enabled. If the service/process is stopped, start Docker Desktop normally from the Windows Start menu and wait for its engine status to become running. Then capture Docker Desktop's version and the exact distro name shown in `wsl --list --verbose`.
+
+Only after confirming those details should further remediation be selected. Current diagnosis: WSL integration mount is missing despite a previous toggle/restart; root cause not yet established.
