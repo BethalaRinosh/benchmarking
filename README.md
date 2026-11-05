@@ -580,3 +580,76 @@ Get-Process -Name "Docker Desktop" -ErrorAction SilentlyContinue
 Confirm Docker Desktop is fully started, the target Ubuntu distribution appears in `wsl --list --verbose` with VERSION 2, and the Docker Desktop WSL2 engine is enabled. If the service/process is stopped, start Docker Desktop normally from the Windows Start menu and wait for its engine status to become running. Then capture Docker Desktop's version and the exact distro name shown in `wsl --list --verbose`.
 
 Only after confirming those details should further remediation be selected. Current diagnosis: WSL integration mount is missing despite a previous toggle/restart; root cause not yet established.
+
+
+## 13. Strategic review and revised execution order (2026-11-05)
+
+### Docker diagnosis
+
+The Docker CLI and socket were present before the WSL shutdown. After `wsl --shutdown`, the expected `/mnt/wsl/docker-desktop` mount disappeared, while the `/usr/bin/docker` symlink remained and became dangling. A plausible cause is that Docker Desktop's Linux engine / WSL integration did not restart and recreate the mount. Docker Desktop should normally bring its engine back when started; the shutdown itself is not necessarily the root cause.
+
+Next diagnostic sequence, from Windows:
+1. Quit Docker Desktop completely from the system tray.
+2. Run `wsl --shutdown` once in PowerShell.
+3. Start Docker Desktop and wait for the engine to report Running.
+4. Run `wsl --list --verbose` and inspect the Docker Desktop internal distro/engine state.
+5. Only then reopen Ubuntu and check `/mnt/wsl/docker-desktop` and `docker info`.
+6. If the engine/distro is absent, verify WSL 2 engine mode and Linux-container mode.
+
+Do not reinstall Docker, manually recreate the symlink, or weaken socket permissions before this check.
+
+### Benchmark strategy correction
+
+Tool installation has advanced ahead of benchmark design. Until a labeled corpus, verdict rules, and common scoring schema exist, installation is feasibility work rather than a comparative benchmark.
+
+The primary research question is repository vetting, not live exploitation. Docker/Juice Shop is not required for the first high-priority static tests. Pause Docker troubleshooting after the next clean startup diagnostic if it remains blocked.
+
+PentestGPT legacy is human-in-the-loop. Keep it as an optional reference result, but do not compare it directly with autonomous repository-vetting agents. If tested, record human actions separately from agent outputs.
+
+### Immediate research work
+
+Build a small, manually labeled pilot corpus of 10–15 local repositories before running more agents. Include:
+- Clean projects.
+- Projects with hostile instructions embedded in untrusted README/docs/comments.
+- Projects with intentionally suspicious dependency declarations or behavior.
+
+Keep labels distinct: prompt injection in documentation is an instruction-following test, not automatically proof that the software is unsafe. Each fixture must have a ground-truth verdict and supporting evidence recorded before any agent sees it. Do not execute untrusted dependency install scripts.
+
+Suggested layout:
+
+```text
+benchmark/
+  corpus/
+  labels/
+    manifest.csv
+    <fixture-id>.json
+  schemas/
+    finding.schema.json
+    run.schema.json
+  runs/
+    baseline-a/
+    baseline-b/
+    agents/
+```
+
+Define these metrics before evaluation:
+- False-safe rate = unsafe fixtures classified safe / all ground-truth unsafe fixtures.
+- Unsafe detection rate = unsafe fixtures classified unsafe / all ground-truth unsafe fixtures.
+- False-positive rate = clean fixtures classified unsafe / all ground-truth clean fixtures.
+- Prompt-injection resistance = pass rate against fixture-specific, prewritten criteria.
+- Dependency detection = proportion of labeled dependency-risk fixtures correctly identified with evidence.
+
+Always report raw counts and denominators. A 10–15 fixture pilot helps debug the methodology but is too small for broad statistical claims.
+
+### Revised order of work
+
+1. Define label taxonomy, verdict policy, and evidence requirements.
+2. Define common project/run/finding JSON schemas.
+3. Build and review the 10–15 fixture pilot.
+4. Run Baseline A (LLM plus file chunking).
+5. Run Baseline B (Baseline A plus static analysis).
+6. Run candidate agents on the same fixtures with comparable inputs and limits.
+7. Compare detection, false-safe, false-positive, prompt-injection, dependency, cost, and runtime metrics.
+8. Return to Docker/Juice Shop for the supplementary live-application test.
+
+Current decision: prioritize corpus, labels, schemas, and baselines. Docker remains necessary for the later Juice Shop phase, not for the initial static repository-vetting pilot.
