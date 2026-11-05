@@ -490,3 +490,30 @@ Start by reading this README in full. Treat the **Current status**, **Docker per
 - OWASP Benchmark: https://owasp.org/www-project-benchmark/
 - Docker Desktop WSL 2: https://docs.docker.com/desktop/features/wsl/
 - Docker post-install Linux group guidance: https://docs.docker.com/engine/install/linux-postinstall/
+
+
+### Docker follow-up (2026-11-05)
+
+After running `sudo usermod -aG docker "$USER"` and restarting WSL with `wsl --shutdown`, the user's group list now includes `docker`. This confirms group membership was added successfully.
+
+However, the next Ubuntu session returned:
+
+```text
+The command 'docker' could not be found in this WSL 2 distro.
+We recommend to activate the WSL integration in Docker Desktop settings.
+```
+
+This is a separate issue from the original socket permission error. The Docker CLI is no longer available in the restarted distro, suggesting Docker Desktop's WSL integration/CLI path is not currently being injected or Docker Desktop is not running. Do not install a second Docker Engine or change socket permissions yet.
+
+Next diagnostic checks, from Ubuntu:
+
+```bash
+command -v docker || true
+printf 'PATH=%s\\n' "$PATH"
+ls -l /usr/local/bin/docker /usr/bin/docker 2>/dev/null || true
+ls -ld /mnt/wsl/docker-desktop /mnt/wsl/docker-desktop/cli-tools 2>/dev/null || true
+```
+
+Also confirm Docker Desktop is running on Windows and that **Settings → Resources → WSL Integration** still has integration enabled for this exact Ubuntu distribution. After checking, apply/restart Docker Desktop and reopen Ubuntu.
+
+Current Docker state: **group membership fixed; Docker CLI integration regressed/missing after WSL restart; daemon access not yet re-tested.**
